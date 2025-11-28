@@ -30,9 +30,11 @@ class BoxPlayer(Player):
 
         stats = self.stats.get(week, {})
         self.points = stats.get('points', 0)
-        self.points_breakdown = stats.get('breakdown', 0)
+        self.breakdown = stats.get('breakdown', {})
+        self.points_breakdown = stats.get('points_breakdown', {})
         self.projected_points = stats.get('projected_points', 0)
-        self.projected_breakdown = stats.get('projected_breakdown', 0)
+        self.projected_breakdown = stats.get('projected_breakdown', {})
+        self.projected_points_breakdown = stats.get('projected_points_breakdown', {})
 
     def __repr__(self):
         return f'Player({self.name}, points:{self.points}, projected:{self.projected_points})'

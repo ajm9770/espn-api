@@ -1,6 +1,6 @@
 import requests
 import json
-from .constant import FANTASY_BASE_ENDPOINT, FANTASY_SPORTS
+from .constant import FANTASY_BASE_ENDPOINT, NEWS_BASE_ENDPOINT, FANTASY_SPORTS
 from ..utils.logger import Logger
 from typing import List
 
@@ -24,6 +24,7 @@ class EspnFantasyRequests(object):
         self.year = year
         self.league_id = league_id
         self.ENDPOINT = FANTASY_BASE_ENDPOINT + FANTASY_SPORTS[sport] + '/seasons/' + str(self.year)
+        self.NEWS_ENDPOINT = NEWS_BASE_ENDPOINT + FANTASY_SPORTS[sport] + '/news/' + 'players'
         self.cookies = cookies
         self.logger = logger
 
@@ -48,12 +49,15 @@ class EspnFantasyRequests(object):
 
             #try the alternate endpoint
             r = requests.get(self.LEAGUE_ENDPOINT + extend, params=params, headers=headers, cookies=self.cookies)
-            
+
             if r.status_code == 200:
                 # Return the updated response if alternate works
                 return r.json()
-                
+
             # If all endpoints failed, raise the corresponding error
+            if not self.cookies or 'espn_s2' not in self.cookies or 'SWID' not in self.cookies:
+                raise ESPNAccessDenied("espn_s2 and swid are required")
+
             raise ESPNAccessDenied(f"League {self.league_id} cannot be accessed with espn_s2={self.cookies.get('espn_s2')} and swid={self.cookies.get('SWID')}")
 
         elif status == 404:
@@ -61,16 +65,16 @@ class EspnFantasyRequests(object):
 
         elif status != 200:
             raise ESPNUnknownError(f"ESPN returned an HTTP {status}")
-        
+
         # If no issues with the status code, return None
         return None
-        
+
     def league_get(self, params: dict = None, headers: dict = None, extend: str = ''):
         endpoint = self.LEAGUE_ENDPOINT + extend
         r = requests.get(endpoint, params=params, headers=headers, cookies=self.cookies)
         alternate_response = self.checkRequestStatus(r.status_code, extend=extend, params=params, headers=headers)
 
-        
+
         response = alternate_response if alternate_response else r.json()
 
         if self.logger:
@@ -87,13 +91,21 @@ class EspnFantasyRequests(object):
             self.logger.log_request(endpoint=endpoint, params=params, headers=headers, response=r.json())
         return r.json()
 
+    def news_get(self, params: dict = None, headers: dict = None, extend: str = ''):
+        endpoint = self.NEWS_ENDPOINT + extend
+        r = requests.get(endpoint, params=params, headers=headers, cookies=self.cookies)
+
+        if self.logger:
+            self.logger.log_request(endpoint=endpoint, params=params, headers=headers, response=r.json())
+        return r.json()
+
     def get_league(self):
         '''Gets all of the leagues initial data (teams, roster, matchups, settings)'''
         params = {
             'view': ['mTeam', 'mRoster', 'mMatchup', 'mSettings', 'mStandings']
         }
         data = self.league_get(params=params)
-        return data        
+        return data
 
     def get_pro_schedule(self):
         '''Gets the current sports professional team schedules'''
@@ -152,9 +164,15 @@ class EspnFantasyRequests(object):
         data = self.league_get(params=params, headers=headers)
         return data
 
+    def get_player_news(self, playerId):
+        '''Gets the player news'''
+        params = {'playerId': playerId}
+        data = self.news_get(params=params)
+        return data
+
     # Username and password no longer works using their API without using google recaptcha
     # Possibly revisit in future if anything changes
- 
+
     # def authentication(self, username: str, password: str):
     #     url_api_key = 'https://registerdisney.go.com/jgc/v5/client/ESPN-FANTASYLM-PROD/api-key?langPref=en-US'
     #     url_login = 'https://ha.registerdisney.go.com/jgc/v5/client/ESPN-FANTASYLM-PROD/guest/login?langPref=en-US'

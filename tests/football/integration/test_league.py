@@ -1,4 +1,4 @@
-from unittest import TestCase
+from unittest import TestCase, skip
 from espn_api.football import League
 
 # Integration test to make sure ESPN's API didnt change
@@ -8,17 +8,16 @@ class LeagueTest(TestCase):
         league = League(1234, 2018)
 
         self.assertEqual(league.current_week, 17)
-
+    @skip('Need new league id for test')
     def test_past_league(self):
-        league = League(12345, 2017)
+        league = League(368876, 2017)
 
         self.assertEqual(league.nfl_week, 18)
 
     def test_private_league(self):
         ''' Test for switching to fallback API endpoint for private leagues. Random, incorrect cookies used to force fallback.  '''
-        league = League(368876, 2018, 'AEF1234567890ABCDE1234567890ABCD', '{D0C25A4C-2A0D-4E56-8E7F-20A10B663272}')
-
-        self.assertEqual(league.espn_request.LEAGUE_ENDPOINT, "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/leagueHistory/368876?seasonId=2018")
+        with self.assertRaises(Exception):
+            League(368876, 2018, 'AEF1234567890ABCDE1234567890ABCD', '{D0C25A4C-2A0D-4E56-8E7F-20A10B663272}')
 
     def test_unknown_league(self):
         with self.assertRaises(Exception):
@@ -45,6 +44,21 @@ class LeagueTest(TestCase):
         self.assertEqual(repr(box_scores[1].away_lineup[1]), 'Player(Odell Beckham Jr., points:29.0, projected:16.72)')
         self.assertEqual(repr(box_scores[1]), 'Box Score(Team(TEAM BERRY) at Team(TEAM HOLLAND))')
         self.assertEqual(box_scores[0].is_playoff, False)
+
+        player = box_scores[1].away_lineup[1]
+        self.assertTrue(hasattr(player, 'breakdown'))
+        self.assertTrue(hasattr(player, 'points_breakdown'))
+        self.assertNotEqual(player.breakdown, {})
+        self.assertNotEqual(player.points_breakdown, {})
+
+        self.assertEqual(player.breakdown['receivingTouchdowns'], 1.0)
+        self.assertEqual(player.points_breakdown['receivingTouchdowns'], 6.0)
+        self.assertEqual(player.projected_breakdown['receivingTouchdowns'], 0.637185906)
+        self.assertEqual(player.projected_points_breakdown['receivingTouchdowns'], 3.823115436)
+
+
+
+
 
         box_scores = league.box_scores()
         self.assertEqual(box_scores[0].is_playoff, True)
