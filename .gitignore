@@ -14,3 +14,9 @@ build
 dist
 env
 coverage*
+
+# Fantasy Decision Maker
+config.json
+.cache/
+reports/
+*.pkl
