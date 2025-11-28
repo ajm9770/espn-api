@@ -34,14 +34,53 @@ If your league is private:
 
 ## Step 3: Run Your First Analysis
 
-### Public League
+### Option A: Using Config File (Easier)
 
+**1. Copy the template:**
+```bash
+cp config.template.json config.json
+```
+
+**2. Edit `config.json` with your league info:**
+```json
+{
+  "league": {
+    "league_id": 123456,
+    "team_id": 1,
+    "year": 2024,
+    "swid": null,
+    "espn_s2": null
+  }
+}
+```
+
+For private leagues, add your cookies:
+```json
+{
+  "league": {
+    "league_id": 123456,
+    "team_id": 1,
+    "swid": "{YOUR-SWID-HERE}",
+    "espn_s2": "YOUR-ESPN-S2-HERE"
+  }
+}
+```
+
+**3. Run:**
+```bash
+python fantasy_decision_maker.py --config config.json
+```
+
+See [CONFIG_USAGE.md](CONFIG_USAGE.md) for more config options.
+
+### Option B: Using Command Line
+
+**Public League:**
 ```bash
 python fantasy_decision_maker.py --league-id 123456 --team-id 1
 ```
 
-### Private League
-
+**Private League:**
 ```bash
 python fantasy_decision_maker.py \
   --league-id 123456 \

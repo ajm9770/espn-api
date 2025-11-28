@@ -65,13 +65,33 @@ chmod +x fantasy_decision_maker.py
                                                                  ^
    ```
 
-### For Public Leagues
+### Option 1: Using Config File (Recommended)
+
+**Setup once:**
+```bash
+# Copy the template
+cp config.template.json config.json
+
+# Edit config.json with your league details
+# Add your league_id, team_id, and optionally swid/espn_s2
+```
+
+**Use every week:**
+```bash
+python fantasy_decision_maker.py --config config.json
+```
+
+See [CONFIG_USAGE.md](CONFIG_USAGE.md) for complete config file documentation.
+
+### Option 2: Using Command Line
+
+#### For Public Leagues
 
 ```bash
 python fantasy_decision_maker.py --league-id YOUR_LEAGUE_ID --team-id YOUR_TEAM_ID
 ```
 
-### For Private Leagues
+#### For Private Leagues
 
 You need ESPN cookies:
 

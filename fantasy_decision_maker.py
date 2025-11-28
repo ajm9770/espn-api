@@ -338,6 +338,12 @@ class FantasyDecisionMaker:
             input("\nPress Enter to continue...")
 
 
+def load_config(config_path: str) -> dict:
+    """Load configuration from JSON file"""
+    with open(config_path, 'r') as f:
+        return json.load(f)
+
+
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
@@ -345,7 +351,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Public league
+  # Using config file
+  python fantasy_decision_maker.py --config config.json
+
+  # Public league (command line)
   python fantasy_decision_maker.py --league-id 123456 --team-id 1
 
   # Private league
@@ -364,35 +373,85 @@ Getting ESPN Cookies for Private Leagues:
         """
     )
 
-    parser.add_argument('--league-id', type=int, required=True,
+    parser.add_argument('--config', type=str, default=None,
+                        help='Path to config JSON file (overrides other args)')
+    parser.add_argument('--league-id', type=int, default=None,
                         help='ESPN League ID')
-    parser.add_argument('--team-id', type=int, required=True,
+    parser.add_argument('--team-id', type=int, default=None,
                         help='Your Team ID')
-    parser.add_argument('--year', type=int, default=datetime.now().year,
+    parser.add_argument('--year', type=int, default=None,
                         help='Season year (default: current year)')
     parser.add_argument('--swid', type=str, default=None,
                         help='ESPN SWID cookie (for private leagues)')
     parser.add_argument('--espn-s2', type=str, default=None,
                         help='ESPN S2 cookie (for private leagues)')
-    parser.add_argument('--simulations', type=int, default=10000,
+    parser.add_argument('--simulations', type=int, default=None,
                         help='Number of Monte Carlo simulations (default: 10000)')
-    parser.add_argument('--cache-dir', type=str, default='.cache',
+    parser.add_argument('--cache-dir', type=str, default=None,
                         help='Cache directory for player models (default: .cache)')
     parser.add_argument('--report-only', action='store_true',
                         help='Generate report and exit (non-interactive)')
 
     args = parser.parse_args()
 
+    # Load from config file if provided
+    if args.config:
+        if not os.path.exists(args.config):
+            print(f"❌ Error: Config file not found: {args.config}")
+            return 1
+
+        try:
+            config = load_config(args.config)
+
+            # Extract values from config
+            league_config = config.get('league', {})
+            sim_config = config.get('simulation', {})
+
+            # Use config values, allow CLI args to override
+            league_id = args.league_id or league_config.get('league_id')
+            team_id = args.team_id or league_config.get('team_id')
+            year = args.year or league_config.get('year', datetime.now().year)
+            swid = args.swid or league_config.get('swid')
+            espn_s2 = args.espn_s2 or league_config.get('espn_s2')
+            num_simulations = args.simulations or sim_config.get('num_simulations', 10000)
+            cache_dir = args.cache_dir or sim_config.get('cache_dir', '.cache')
+
+            print(f"📄 Loaded config from: {args.config}")
+
+        except json.JSONDecodeError as e:
+            print(f"❌ Error: Invalid JSON in config file: {e}")
+            return 1
+        except Exception as e:
+            print(f"❌ Error loading config: {e}")
+            return 1
+    else:
+        # Use command-line arguments
+        league_id = args.league_id
+        team_id = args.team_id
+        year = args.year or datetime.now().year
+        swid = args.swid
+        espn_s2 = args.espn_s2
+        num_simulations = args.simulations or 10000
+        cache_dir = args.cache_dir or '.cache'
+
+    # Validate required parameters
+    if league_id is None:
+        print("❌ Error: --league-id is required (or specify --config)")
+        return 1
+    if team_id is None:
+        print("❌ Error: --team-id is required (or specify --config)")
+        return 1
+
     # Create decision maker
     try:
         dm = FantasyDecisionMaker(
-            league_id=args.league_id,
-            team_id=args.team_id,
-            year=args.year,
-            swid=args.swid,
-            espn_s2=args.espn_s2,
-            cache_dir=args.cache_dir,
-            num_simulations=args.simulations
+            league_id=league_id,
+            team_id=team_id,
+            year=year,
+            swid=swid,
+            espn_s2=espn_s2,
+            cache_dir=cache_dir,
+            num_simulations=num_simulations
         )
 
         if args.report_only:
