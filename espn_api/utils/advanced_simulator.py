@@ -238,6 +238,36 @@ class AdvancedFantasySimulator:
         # Project wins added
         avg_points_per_week = my_value_change / weeks_remaining if weeks_remaining > 0 else 0
 
+        # Calculate trade fairness/acceptance probability
+        # Trade is more likely to be accepted if both sides gain (or loss is minimal)
+        if my_value_change > 0 and their_value_change > 0:
+            # Both sides win - high acceptance probability
+            acceptance_prob = min(95, 70 + (their_value_change / abs(my_value_change)) * 25)
+        elif my_value_change > 0 and their_value_change < 0:
+            # You win, they lose - acceptance based on how much they lose
+            loss_pct = abs(their_value_change) / their_current_value if their_current_value > 0 else 1.0
+            if loss_pct < 0.02:  # Less than 2% loss
+                acceptance_prob = 60
+            elif loss_pct < 0.05:  # Less than 5% loss
+                acceptance_prob = 40
+            elif loss_pct < 0.10:  # Less than 10% loss
+                acceptance_prob = 20
+            else:  # More than 10% loss
+                acceptance_prob = 5
+        elif my_value_change < 0 and their_value_change > 0:
+            # You lose, they win - low probability you'd accept
+            acceptance_prob = 10
+        else:
+            # Both lose - very unlikely
+            acceptance_prob = 5
+
+        # Adjust for extreme imbalance
+        if abs(my_value_change - their_value_change) > 15:
+            acceptance_prob = min(acceptance_prob, 10)
+
+        # Determine if trade is realistic (>30% acceptance probability)
+        is_realistic = acceptance_prob > 30
+
         return {
             'my_value_change': my_value_change,
             'their_value_change': their_value_change,
@@ -245,7 +275,9 @@ class AdvancedFantasySimulator:
             'advantage_margin': my_value_change - their_value_change,
             'projected_points_added_per_week': avg_points_per_week,
             'total_projected_points_added': my_value_change,
-            'recommendation': 'ACCEPT' if my_value_change > 0 else 'REJECT',
+            'acceptance_probability': acceptance_prob,
+            'is_realistic': is_realistic,
+            'recommendation': 'ACCEPT' if my_value_change > 0 and acceptance_prob > 20 else 'REJECT',
             'confidence': min(100, abs(my_value_change) / (my_current_value / 10)) if my_current_value > 0 else 0
         }
 
