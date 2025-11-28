@@ -187,13 +187,14 @@ class FantasyDecisionMaker:
         print("🔄 TRADE OPPORTUNITY ANALYSIS")
         print("=" * 80)
 
-        print(f"\n🔍 Searching for asymmetric trade opportunities...")
-        print("   (Looking for trades where you gain more value than opponent)\n")
+        print(f"\n🔍 Searching for realistic trade opportunities...")
+        print("   (Looking for trades with good value AND reasonable acceptance chance)\n")
 
         opportunities = self.simulator.find_trade_opportunities(
             self.my_team,
             min_advantage=3.0,  # Minimum 3 point advantage
-            max_trades_per_team=2
+            max_trades_per_team=2,
+            min_acceptance_probability=30.0  # At least 30% chance of acceptance
         )
 
         if not opportunities:
@@ -215,11 +216,25 @@ class FantasyDecisionMaker:
             print(f"     Their Value Change:     {analysis['their_value_change']:+.1f} pts")
             print(f"     Advantage Margin:       {analysis['advantage_margin']:+.1f} pts")
             print(f"     Points Added Per Week:  {analysis['projected_points_added_per_week']:+.1f} pts")
+            print(f"     Acceptance Probability: {analysis['acceptance_probability']:.0f}%")
             print(f"     Recommendation:         {analysis['recommendation']}")
             print(f"     Confidence:             {analysis['confidence']:.0f}%")
 
-            if analysis['asymmetric_advantage']:
-                print(f"\n  ✅ ASYMMETRIC ADVANTAGE: You gain significantly more value!")
+            # Visual indicator for acceptance probability
+            accept_prob = analysis['acceptance_probability']
+            if accept_prob >= 70:
+                print(f"\n  🟢 REALISTIC TRADE: High chance of acceptance ({accept_prob:.0f}%)")
+            elif accept_prob >= 40:
+                print(f"\n  🟡 MODERATE TRADE: Fair chance of acceptance ({accept_prob:.0f}%)")
+            elif accept_prob >= 20:
+                print(f"\n  🟠 RISKY TRADE: Low chance of acceptance ({accept_prob:.0f}%)")
+            else:
+                print(f"\n  🔴 UNREALISTIC: Very unlikely to be accepted ({accept_prob:.0f}%)")
+
+            if analysis['asymmetric_advantage'] and analysis['is_realistic']:
+                print(f"  ✅ ASYMMETRIC & REALISTIC: You gain more value AND they might accept!")
+            elif analysis['asymmetric_advantage']:
+                print(f"  ⚠️  ASYMMETRIC BUT UNFAIR: You gain much more, unlikely to be accepted")
             print()
 
     def analyze_season_outlook(self):

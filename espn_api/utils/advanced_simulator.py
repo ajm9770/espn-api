@@ -329,7 +329,8 @@ class AdvancedFantasySimulator:
         self,
         my_team,
         min_advantage: float = 5.0,
-        max_trades_per_team: int = 3
+        max_trades_per_team: int = 3,
+        min_acceptance_probability: float = 30.0
     ) -> List[Dict]:
         """
         Find potential trade opportunities with asymmetric value
@@ -338,6 +339,7 @@ class AdvancedFantasySimulator:
             my_team: Your team
             min_advantage: Minimum point advantage to consider
             max_trades_per_team: Max trade suggestions per opponent
+            min_acceptance_probability: Minimum acceptance probability (default 30%)
 
         Returns:
             List of trade opportunities
@@ -366,7 +368,10 @@ class AdvancedFantasySimulator:
                         [my_player], [their_player]
                     )
 
-                    if analysis['my_value_change'] > min_advantage and analysis['asymmetric_advantage']:
+                    # Only suggest trades that are realistic (high enough acceptance probability)
+                    if (analysis['my_value_change'] > min_advantage and
+                        analysis['asymmetric_advantage'] and
+                        analysis['acceptance_probability'] >= min_acceptance_probability):
                         team_trades.append({
                             'other_team': other_team.team_name,
                             'give': [my_player.name],
@@ -383,7 +388,10 @@ class AdvancedFantasySimulator:
                             [my_player1, my_player2], [their_player]
                         )
 
-                        if analysis['my_value_change'] > min_advantage and analysis['asymmetric_advantage']:
+                        # Only suggest realistic trades
+                        if (analysis['my_value_change'] > min_advantage and
+                            analysis['asymmetric_advantage'] and
+                            analysis['acceptance_probability'] >= min_acceptance_probability):
                             team_trades.append({
                                 'other_team': other_team.team_name,
                                 'give': [my_player1.name, my_player2.name],
@@ -405,7 +413,8 @@ class AdvancedFantasySimulator:
         my_team,
         free_agents: List,
         top_n: int = 10,
-        positions: Optional[List[str]] = None
+        positions: Optional[List[str]] = None,
+        exclude_injured: bool = True
     ) -> List[Dict]:
         """
         Recommend free agent pickups
@@ -415,6 +424,7 @@ class AdvancedFantasySimulator:
             free_agents: List of available free agents
             top_n: Number of recommendations
             positions: Filter by positions (None for all)
+            exclude_injured: Exclude players with injury designations (default True)
 
         Returns:
             List of free agent recommendations
@@ -425,6 +435,13 @@ class AdvancedFantasySimulator:
             # Filter by position if specified
             if positions and fa.position not in positions:
                 continue
+
+            # Filter out injured players
+            if exclude_injured:
+                injury_status = getattr(fa, 'injuryStatus', None) or getattr(fa, 'injury_status', None)
+                # Skip players with O (Out), Q (Questionable), D (Doubtful), IR, SUSP status
+                if injury_status and injury_status.upper() in ['OUT', 'O', 'QUESTIONABLE', 'Q', 'DOUBTFUL', 'D', 'IR', 'SUSPENSION', 'SUSP']:
+                    continue
 
             # Find weakest player at this position on my team
             position_players = [p for p in my_team.roster if p.position == fa.position]
