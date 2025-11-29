@@ -115,7 +115,7 @@ class FantasyDecisionMaker:
         )
 
         # Display results
-        print(f"\n📊 SIMULATION RESULTS")
+        print("\n📊 SIMULATION RESULTS")
         print(f"{'─' * 80}")
         print(f"\n{self.my_team.team_name}:")
         print(f"  Win Probability: {results['team1_win_probability']:.1f}%")
@@ -128,7 +128,7 @@ class FantasyDecisionMaker:
         print(f"  Score Range (10th-90th percentile): {results['team2_score_range'][0]:.1f} - {results['team2_score_range'][1]:.1f}")
 
         # Recommendation
-        print(f"\n💡 OUTLOOK:")
+        print("\n💡 OUTLOOK:")
         win_prob = results['team1_win_probability']
         if win_prob > 70:
             print(f"   🟢 Strong favorite - {win_prob:.0f}% chance to win")
@@ -147,7 +147,7 @@ class FantasyDecisionMaker:
         print("🆓 FREE AGENT ANALYSIS (REST OF SEASON)")
         print("=" * 80)
 
-        print(f"\n📥 Fetching free agents...")
+        print("\n📥 Fetching free agents...")
         free_agents = self.league.free_agents(size=100)
 
         print(f"🔍 Analyzing {len(free_agents)} free agents with ROS schedule awareness...\n")
@@ -186,9 +186,9 @@ class FantasyDecisionMaker:
                 'Player': rec['player'].name,
                 'Pos': rec['position'],
                 'Value Added': f"+{rec['value_added']:.1f}",
-                f'ROS Avg': fa_display,
+                'ROS Avg': fa_display,
                 'Drop': rec['drop_candidate'][:20],
-                f'Drop ROS': drop_display,
+                'Drop ROS': drop_display,
                 'Priority': rec['priority'],
                 'Own %': f"{rec['ownership_pct']:.1f}%"
             })
@@ -208,7 +208,7 @@ class FantasyDecisionMaker:
         print("🔄 TRADE OPPORTUNITY ANALYSIS (REST OF SEASON)")
         print("=" * 80)
 
-        print(f"\n🔍 Searching for realistic trade opportunities...")
+        print("\n🔍 Searching for realistic trade opportunities...")
         print("   (Using ROS projections with schedule-aware matchup difficulty)\n")
 
         opportunities = self.simulator.find_trade_opportunities(
@@ -258,9 +258,9 @@ class FantasyDecisionMaker:
                 print(f"\n  🔴 UNREALISTIC: Very unlikely to be accepted ({accept_prob:.0f}%)")
 
             if analysis['asymmetric_advantage'] and analysis['is_realistic']:
-                print(f"  ✅ ASYMMETRIC & REALISTIC: You gain more value AND they might accept!")
+                print("  ✅ ASYMMETRIC & REALISTIC: You gain more value AND they might accept!")
             elif analysis['asymmetric_advantage']:
-                print(f"  ⚠️  ASYMMETRIC BUT UNFAIR: You gain much more, unlikely to be accepted")
+                print("  ⚠️  ASYMMETRIC BUT UNFAIR: You gain much more, unlikely to be accepted")
             print()
 
     def analyze_season_outlook(self):
@@ -288,7 +288,7 @@ class FantasyDecisionMaker:
         df = pd.DataFrame(data)
         df = df.sort_values('Proj Wins', ascending=False)
 
-        print(f"\n📊 PROJECTED STANDINGS:\n")
+        print("\n📊 PROJECTED STANDINGS:\n")
         print(df.to_string(index=False))
 
         # Highlight my team
@@ -313,7 +313,7 @@ class FantasyDecisionMaker:
             output_file = os.path.join(reports_dir, f"weekly_report_week{self.league.current_week}_{datetime.now().strftime('%Y%m%d')}.txt")
 
         print("=" * 80)
-        print(f"📝 GENERATING WEEKLY REPORT")
+        print("📝 GENERATING WEEKLY REPORT")
         print("=" * 80)
         print()
 
@@ -324,7 +324,7 @@ class FantasyDecisionMaker:
         with open(output_file, 'w') as f:
             sys.stdout = f
 
-            print(f"FANTASY FOOTBALL WEEKLY REPORT")
+            print("FANTASY FOOTBALL WEEKLY REPORT")
             print(f"League: {self.league_id}")
             print(f"Team: {self.my_team.team_name}")
             print(f"Week: {self.league.current_week}")
@@ -355,7 +355,7 @@ class FantasyDecisionMaker:
             print("🏈 FANTASY FOOTBALL DECISION MAKER")
             print("=" * 80)
             print(f"\nLeague: {self.league_id} | Team: {self.my_team.team_name} | Week: {self.league.current_week}")
-            print(f"\nWhat would you like to analyze?")
+            print("\nWhat would you like to analyze?")
             print("  1. Current Week Matchup")
             print("  2. Free Agent Recommendations")
             print("  3. Trade Opportunities")
