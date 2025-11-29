@@ -12,11 +12,18 @@ Added injury status filtering to `recommend_free_agents()`:
 - `exclude_injured` (default: `True`) - Automatically filters out injured players
 
 **Filtered Statuses:**
-- OUT / O
-- QUESTIONABLE / Q
-- DOUBTFUL / D
-- IR
-- SUSPENSION / SUSP
+ESPN API uses these injury status values:
+- `OUT` - Player is out for the game
+- `QUESTIONABLE` - Player's status is uncertain
+- `DOUBTFUL` - Player is unlikely to play
+- `INJURY_RESERVE` - Player on injured reserve (not `IR`)
+- `SUSPENSION` - Player is suspended
+- Any status that is NOT `ACTIVE` or `NORMAL`
+
+**Healthy Statuses (NOT filtered):**
+- `ACTIVE` - Player is healthy and active
+- `NORMAL` - Player is in normal status
+- `None` - No injury status set
 
 **Code Changes:**
 ```python
@@ -32,7 +39,9 @@ def recommend_free_agents(
     # Filter out injured players
     if exclude_injured:
         injury_status = getattr(fa, 'injuryStatus', None) or getattr(fa, 'injury_status', None)
-        if injury_status and injury_status.upper() in ['OUT', 'O', 'QUESTIONABLE', 'Q', 'DOUBTFUL', 'D', 'IR', 'SUSPENSION', 'SUSP']:
+        # ESPN uses: OUT, QUESTIONABLE, DOUBTFUL, INJURY_RESERVE, DAY_TO_DAY
+        # Healthy players have: ACTIVE or NORMAL
+        if injury_status and injury_status.upper() not in ['ACTIVE', 'NORMAL', '', None]:
             continue  # Skip this player
 ```
 
@@ -41,13 +50,14 @@ Created comprehensive test suite (`test_injury_filtering.py`) with 11 tests cove
 - OUT players filtered
 - QUESTIONABLE players filtered
 - DOUBTFUL players filtered
-- IR players filtered
+- INJURY_RESERVE players filtered
 - SUSPENDED players filtered
-- Case-insensitive filtering
-- Healthy players not filtered
-- Mixed injury statuses
+- Case-insensitive filtering (active, out, Out all work)
+- ACTIVE and NORMAL players NOT filtered
+- Mixed injury statuses handled correctly
 - Value ranking preserved after filtering
 - Option to include injured players (`exclude_injured=False`)
+- None injury status handled correctly
 
 ---
 
