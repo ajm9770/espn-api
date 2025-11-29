@@ -204,5 +204,80 @@ class TestROSTradeAnalysis(unittest.TestCase):
         self.assertGreater(ros_value, 0)
 
 
+    def test_free_agent_recommendations_use_ros(self):
+        """Test that free agent recommendations can use ROS projections"""
+        # Create free agents with schedules
+        easy_schedule = {
+            10: {'team': 'ARI', 'date': None},
+            11: {'team': 'CAR', 'date': None},
+        }
+        tough_schedule = {
+            10: {'team': 'SF', 'date': None},
+            11: {'team': 'BAL', 'date': None},
+        }
+
+        fa_easy = self._create_mock_player("Easy FA", "RB", 12.0, 301, easy_schedule)
+        fa_tough = self._create_mock_player("Tough FA", "RB", 12.0, 302, tough_schedule)
+        my_rb = self._create_mock_player("My RB", "RB", 10.0, 101)
+
+        free_agents = [fa_easy, fa_tough]
+        self.my_team.roster = [my_rb]
+
+        # Get recommendations with ROS
+        recommendations = self.simulator.recommend_free_agents(
+            self.my_team,
+            free_agents,
+            top_n=5,
+            use_ros=True
+        )
+
+        # Should get recommendations
+        self.assertGreater(len(recommendations), 0)
+
+        # Verify uses_ros flag is set
+        for rec in recommendations:
+            self.assertTrue(rec.get('uses_ros', False))
+
+    def test_free_agent_without_ros(self):
+        """Test that free agent recommendations work without ROS"""
+        fa = self._create_mock_player("Free Agent", "RB", 15.0, 301)
+        my_rb = self._create_mock_player("My RB", "RB", 10.0, 101)
+
+        free_agents = [fa]
+        self.my_team.roster = [my_rb]
+
+        # Get recommendations without ROS
+        recommendations = self.simulator.recommend_free_agents(
+            self.my_team,
+            free_agents,
+            top_n=5,
+            use_ros=False
+        )
+
+        # Should get recommendations
+        self.assertEqual(len(recommendations), 1)
+        self.assertFalse(recommendations[0].get('uses_ros', True))
+
+    def test_player_ros_value_calculation(self):
+        """Test individual player ROS value calculation"""
+        schedule = {
+            10: {'team': 'ARI', 'date': None},
+            11: {'team': 'CAR', 'date': None},
+        }
+        player = self._create_mock_player("Test RB", "RB", 15.0, 101, schedule)
+
+        # Calculate player's ROS value
+        ros_value = self.simulator._calculate_player_ros_value(
+            player,
+            current_week=10,
+            end_week=11,
+            consider_schedule=True
+        )
+
+        # Should return a valid value
+        self.assertGreater(ros_value, 0)
+        self.assertIsInstance(ros_value, float)
+
+
 if __name__ == '__main__':
     unittest.main()

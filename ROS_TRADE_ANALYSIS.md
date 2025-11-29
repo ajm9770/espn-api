@@ -1,8 +1,8 @@
-# Rest of Season (ROS) Trade Analysis - Implementation Complete ✅
+# Rest of Season (ROS) Analysis - Implementation Complete ✅
 
 ## Overview
 
-Trade analysis now uses **Rest of Season (ROS) projections** with **schedule-aware matchup difficulty** instead of season averages. This gives you accurate trade values based on upcoming matchups for the weeks that actually matter.
+**Trade analysis** and **free agent recommendations** now use **Rest of Season (ROS) projections** with **schedule-aware matchup difficulty** instead of season averages. This gives you accurate values based on upcoming matchups for the weeks that actually matter.
 
 ## What Changed
 
@@ -117,12 +117,19 @@ def analyze_trade(my_team, other_team, my_players, their_players, use_ros=True):
 
 ### CLI (Automatic)
 
+**Trades:**
 ```bash
 python fantasy_decision_maker.py --league-id XXX --team-id X
 # Select: "4. Analyze trades"
 ```
 
-**Output:**
+**Free Agents:**
+```bash
+python fantasy_decision_maker.py --league-id XXX --team-id X
+# Select: "2. Analyze free agents"
+```
+
+**Trade Output:**
 ```
 🔄 TRADE OPPORTUNITY ANALYSIS (REST OF SEASON)
 
@@ -148,6 +155,27 @@ TRADE #1: with Team Alpha
   🟡 MODERATE TRADE: Fair chance of acceptance (65%)
   ✅ ASYMMETRIC & REALISTIC: You gain more value AND they might accept!
 ```
+
+**Free Agent Output:**
+```
+🆓 FREE AGENT ANALYSIS (REST OF SEASON)
+
+📥 Fetching free agents...
+🔍 Analyzing 100 free agents with ROS schedule awareness...
+
+🎯 TOP FREE AGENT RECOMMENDATIONS (ROS):
+   (ROS values shown, season avg in parentheses if significantly different)
+
+   Rank  Player            Pos  Value Added  ROS Avg       Drop                 Drop ROS     Priority  Own %
+      1  Jaylen Warren     RB         +5.2   14.3 (12.1)  James Conner         9.1 (13.5)   HIGH      45.2%
+      2  Tank Bigsby       RB         +4.8   13.2 (11.8)  Tony Pollard         8.4 (10.2)   HIGH      38.7%
+      3  Jaxon Smith-Njigba WR        +3.9   11.5 (10.2)  Tyler Lockett        7.6 (8.9)    HIGH      52.1%
+```
+
+**What This Shows:**
+- Jaylen Warren: 14.3 ROS (was 12.1 season avg) → easy schedule!
+- James Conner: 9.1 ROS (was 13.5 season avg) → tough schedule!
+- Net gain: +5.2 pts/week by making the pickup
 
 ### Programmatic Usage
 
@@ -178,6 +206,19 @@ analysis = simulator.analyze_trade(
 print(f"Value change (ROS): {analysis['my_value_change']} pts/week")
 print(f"Uses ROS: {analysis['uses_ros_projections']}")
 print(f"Weeks remaining: {analysis['weeks_remaining']}")
+
+# Find free agents using ROS projections
+free_agents = league.free_agents(size=100)
+recommendations = simulator.recommend_free_agents(
+    my_team,
+    free_agents,
+    top_n=10,
+    use_ros=True  # Default, uses ROS with schedule awareness
+)
+
+for rec in recommendations:
+    print(f"{rec['player'].name}: {rec['fa_projected_avg']:.1f} ROS (was {rec['fa_season_avg']:.1f})")
+    print(f"  Value added: +{rec['value_added']:.1f} pts/week")
 ```
 
 ### Disable ROS (Use Season Averages)
@@ -192,6 +233,13 @@ opportunities = simulator.find_trade_opportunities(
 analysis = simulator.analyze_trade(
     my_team, other_team,
     [my_player], [their_player],
+    use_ros=False
+)
+
+# Free agents without ROS
+recommendations = simulator.recommend_free_agents(
+    my_team,
+    free_agents,
     use_ros=False
 )
 ```

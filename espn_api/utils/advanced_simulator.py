@@ -500,6 +500,60 @@ class AdvancedFantasySimulator:
 
         return total_ros_value
 
+    def _calculate_player_ros_value(
+        self,
+        player,
+        current_week: int,
+        end_week: int,
+        consider_schedule: bool = True
+    ) -> float:
+        """
+        Calculate a single player's ROS value with schedule awareness
+
+        Args:
+            player: Player object
+            current_week: Current week number
+            end_week: Final week to consider
+            consider_schedule: Whether to adjust for matchup difficulty
+
+        Returns:
+            Average weekly ROS value for this player
+        """
+        player_ros_value = 0
+        weeks_with_data = 0
+
+        # Project each remaining week
+        for week in range(current_week, end_week + 1):
+            # Get base projection
+            if self.use_gmm and player.playerId in self.player_model.player_states:
+                # Use GMM prediction (accounts for hot/cold state)
+                base_projection = self.player_model.predict_performance(
+                    player,
+                    n_samples=1,
+                    use_state_bias=True
+                )[0]
+            else:
+                # Fall back to projected points
+                base_projection = getattr(player, 'projected_avg_points', 0) or getattr(player, 'avg_points', 0)
+
+            # Adjust for matchup difficulty if schedule data available
+            week_projection = base_projection
+            if consider_schedule and hasattr(player, 'schedule') and week in player.schedule:
+                opponent = player.schedule[week].get('team', '')
+                if opponent and player.position in ['QB', 'RB', 'WR', 'TE']:
+                    matchup_multiplier = self._calculate_opponent_strength(player.position, opponent)
+                    week_projection = base_projection * matchup_multiplier
+
+            player_ros_value += week_projection
+            weeks_with_data += 1
+
+        # Return average weekly value
+        if weeks_with_data > 0:
+            return player_ros_value / weeks_with_data
+        else:
+            # Fallback to season average
+            return getattr(player, 'projected_avg_points', 0) or getattr(player, 'avg_points', 0)
+
     def find_trade_opportunities(
         self,
         my_team,
@@ -600,10 +654,11 @@ class AdvancedFantasySimulator:
         free_agents: List,
         top_n: int = 10,
         positions: Optional[List[str]] = None,
-        exclude_injured: bool = True
+        exclude_injured: bool = True,
+        use_ros: bool = True
     ) -> List[Dict]:
         """
-        Recommend free agent pickups
+        Recommend free agent pickups with ROS schedule awareness
 
         Args:
             my_team: Your team
@@ -611,10 +666,16 @@ class AdvancedFantasySimulator:
             top_n: Number of recommendations
             positions: Filter by positions (None for all)
             exclude_injured: Exclude players with injury designations (default True)
+            use_ros: Use rest of season projections with schedule awareness (default True)
 
         Returns:
             List of free agent recommendations
         """
+        # Calculate weeks remaining for ROS
+        current_week = self.league.current_week
+        reg_season_end = self.league.settings.reg_season_count
+        end_week = reg_season_end
+
         recommendations = []
 
         for fa in free_agents:
@@ -638,21 +699,38 @@ class AdvancedFantasySimulator:
                 priority_multiplier = 0.5
                 drop_candidate = None
             else:
-                # Find worst player at position
-                drop_candidate = min(
-                    position_players,
-                    key=lambda x: getattr(x, 'projected_avg_points', 0) or getattr(x, 'avg_points', 0)
-                )
+                # Find worst player at position using ROS or season avg
+                if use_ros:
+                    drop_candidate = min(
+                        position_players,
+                        key=lambda x: self._calculate_player_ros_value(x, current_week, end_week, consider_schedule=True)
+                    )
+                else:
+                    drop_candidate = min(
+                        position_players,
+                        key=lambda x: getattr(x, 'projected_avg_points', 0) or getattr(x, 'avg_points', 0)
+                    )
                 priority_multiplier = 1.0
 
-            # Calculate value added
-            fa_value = getattr(fa, 'projected_avg_points', 0) or getattr(fa, 'avg_points', 0)
+            # Calculate value added using ROS or season avg
+            if use_ros:
+                fa_value = self._calculate_player_ros_value(fa, current_week, end_week, consider_schedule=True)
+                fa_season_avg = getattr(fa, 'projected_avg_points', 0) or getattr(fa, 'avg_points', 0)
+            else:
+                fa_value = getattr(fa, 'projected_avg_points', 0) or getattr(fa, 'avg_points', 0)
+                fa_season_avg = fa_value
 
             if drop_candidate:
-                drop_value = getattr(drop_candidate, 'projected_avg_points', 0) or getattr(drop_candidate, 'avg_points', 0)
+                if use_ros:
+                    drop_value = self._calculate_player_ros_value(drop_candidate, current_week, end_week, consider_schedule=True)
+                    drop_season_avg = getattr(drop_candidate, 'projected_avg_points', 0) or getattr(drop_candidate, 'avg_points', 0)
+                else:
+                    drop_value = getattr(drop_candidate, 'projected_avg_points', 0) or getattr(drop_candidate, 'avg_points', 0)
+                    drop_season_avg = drop_value
                 value_added = (fa_value - drop_value) * priority_multiplier
             else:
                 value_added = fa_value * priority_multiplier
+                drop_season_avg = 0
 
             if value_added > 0:
                 recommendations.append({
@@ -661,9 +739,12 @@ class AdvancedFantasySimulator:
                     'value_added': value_added,
                     'drop_candidate': drop_candidate.name if drop_candidate else 'None (roster expansion)',
                     'fa_projected_avg': fa_value,
+                    'fa_season_avg': fa_season_avg,
                     'drop_projected_avg': drop_value if drop_candidate else 0,
+                    'drop_season_avg': drop_season_avg,
                     'priority': 'HIGH' if value_added > 3 else 'MEDIUM' if value_added > 1 else 'LOW',
-                    'ownership_pct': getattr(fa, 'percent_owned', 0)
+                    'ownership_pct': getattr(fa, 'percent_owned', 0),
+                    'uses_ros': use_ros
                 })
 
         # Sort by value added
