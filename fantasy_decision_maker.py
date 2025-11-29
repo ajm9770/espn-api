@@ -184,17 +184,18 @@ class FantasyDecisionMaker:
     def analyze_trades(self, max_opportunities: int = 5):
         """Find and analyze trade opportunities"""
         print("=" * 80)
-        print("🔄 TRADE OPPORTUNITY ANALYSIS")
+        print("🔄 TRADE OPPORTUNITY ANALYSIS (REST OF SEASON)")
         print("=" * 80)
 
         print(f"\n🔍 Searching for realistic trade opportunities...")
-        print("   (Looking for trades with good value AND reasonable acceptance chance)\n")
+        print("   (Using ROS projections with schedule-aware matchup difficulty)\n")
 
         opportunities = self.simulator.find_trade_opportunities(
             self.my_team,
             min_advantage=3.0,  # Minimum 3 point advantage
             max_trades_per_team=2,
-            min_acceptance_probability=30.0  # At least 30% chance of acceptance
+            min_acceptance_probability=30.0,  # At least 30% chance of acceptance
+            use_ros=True  # Use rest of season projections
         )
 
         if not opportunities:
@@ -211,10 +212,14 @@ class FantasyDecisionMaker:
             print(f"  You Receive: {', '.join(opp['receive'])}")
 
             analysis = opp['analysis']
-            print(f"\n  📊 Analysis:")
-            print(f"     Your Value Change:      {analysis['my_value_change']:+.1f} pts")
-            print(f"     Their Value Change:     {analysis['their_value_change']:+.1f} pts")
-            print(f"     Advantage Margin:       {analysis['advantage_margin']:+.1f} pts")
+            ros_indicator = " (ROS)" if analysis.get('uses_ros_projections', False) else ""
+            weeks_rem = analysis.get('weeks_remaining', 'N/A')
+
+            print(f"\n  📊 Analysis{ros_indicator}:")
+            print(f"     Weeks Remaining:        {weeks_rem}")
+            print(f"     Your Value Change:      {analysis['my_value_change']:+.1f} pts/week")
+            print(f"     Their Value Change:     {analysis['their_value_change']:+.1f} pts/week")
+            print(f"     Advantage Margin:       {analysis['advantage_margin']:+.1f} pts/week")
             print(f"     Points Added Per Week:  {analysis['projected_points_added_per_week']:+.1f} pts")
             print(f"     Acceptance Probability: {analysis['acceptance_probability']:.0f}%")
             print(f"     Recommendation:         {analysis['recommendation']}")

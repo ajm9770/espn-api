@@ -376,3 +376,193 @@ Just run the tool normally - improvements are automatic! The tool now:
 3. Shows you acceptance probability so you can decide which trades to propose
 
 **Ready to use immediately - no config changes needed!** 🎉
+
+---
+
+## Issue #3: Trade Values Based on Season Averages, Not ROS ✅ FIXED
+
+### Problem
+Trade recommendations were based on **season-long averages** instead of **Rest of Season (ROS) projections**. This meant:
+- A player with 3 tough matchups remaining had the same value as one with 3 easy matchups
+- Past performance (weeks 1-10) weighted equally with future matchups
+- No consideration of upcoming schedule strength
+
+**Example:**
+```
+Player A: 15.0 pts/game (season avg) → ROS vs #1, #2, #3 defenses
+Player B: 15.0 pts/game (season avg) → ROS vs #30, #31, #32 defenses
+
+Old System: "Equal value" ❌
+Reality: Player B much more valuable for ROS ✅
+```
+
+### Solution
+Implemented **schedule-aware ROS projections** for trade analysis:
+
+**New Calculation Method:**
+1. Calculate opponent strength for each position based on fantasy points allowed
+2. Project weekly performance for remaining weeks with matchup adjustments
+3. Use ROS values instead of season averages for trade analysis
+
+**Code Changes:**
+```python
+# In advanced_simulator.py
+
+# NEW: Calculate opponent defense strength
+def _calculate_opponent_strength(position: str, opponent_team: str) -> float:
+    # Returns multiplier: 1.0 = average, >1.0 = favorable, <1.0 = unfavorable
+    # Example: 49ers allow 12 pts/game to RBs, league avg is 15
+    #   multiplier = 12/15 = 0.80 (tough matchup)
+
+# NEW: Calculate ROS value with schedule awareness
+def _calculate_roster_value_ros(roster, current_week, end_week, consider_schedule=True):
+    for week in range(current_week, end_week + 1):
+        # Get base projection (with GMM hot/cold state)
+        base_projection = GMM_predict() or projected_avg_points
+
+        # Adjust for matchup difficulty
+        if player has schedule data:
+            opponent = player.schedule[week]
+            multiplier = calculate_opponent_strength(position, opponent)
+            week_projection = base_projection * multiplier
+
+        ros_value += week_projection
+    return ros_value / weeks_remaining
+
+# UPDATED: analyze_trade now uses ROS by default
+def analyze_trade(my_team, other_team, my_players, their_players, use_ros=True):
+    if use_ros:
+        # Use ROS projections with schedule awareness
+        my_value_after = calculate_roster_value_ros(roster_after, current_week, end_week)
+    else:
+        # Fall back to season averages
+        my_value_after = calculate_roster_value(roster_after)
+```
+
+**New Output:**
+```
+🔄 TRADE OPPORTUNITY ANALYSIS (REST OF SEASON)
+
+🔍 Searching for realistic trade opportunities...
+   (Using ROS projections with schedule-aware matchup difficulty)
+
+TRADE #1: with Team Alpha
+────────────────────────────────────────────────────────────────
+
+  You Give:    James Conner
+  You Receive: Saquon Barkley
+
+  📊 Analysis (ROS):
+     Weeks Remaining:        5
+     Your Value Change:      +4.2 pts/week  ← ROS, not season avg!
+     Their Value Change:     +1.5 pts/week
+     Advantage Margin:       +2.7 pts/week
+     Acceptance Probability: 65%
+     Recommendation:         ACCEPT
+
+  🟡 MODERATE TRADE: Fair chance of acceptance (65%)
+  ✅ ASYMMETRIC & REALISTIC: You gain more value AND they might accept!
+```
+
+### How It Works
+
+**Step 1: Calculate Defense Rankings**
+- Analyzes fantasy points allowed by each NFL team to each position
+- Creates multipliers: 1.0 = average, >1.0 = easy, <1.0 = tough
+
+**Step 2: Project ROS Performance**
+- For each remaining week, gets base projection (GMM or ESPN)
+- Adjusts projection based on opponent strength
+- Averages weekly projections for ROS value
+
+**Step 3: Analyze Trade with ROS**
+- Calculates team ROS value before trade
+- Calculates team ROS value after trade
+- Reports value change in pts/week for remaining weeks
+
+### Example Comparison
+
+**Before (Season Averages):**
+```
+Player A: 15.0 pts/game season avg
+Player B: 15.0 pts/game season avg
+Trade Value: EQUAL ❌
+```
+
+**After (ROS Projections):**
+```
+Player A (tough schedule):
+  - Season Avg: 15.0 pts/game
+  - ROS Matchups: vs #1 DEF, vs #2 DEF, vs #3 DEF
+  - ROS Projection: 11.5 pts/game
+
+Player B (easy schedule):
+  - Season Avg: 15.0 pts/game
+  - ROS Matchups: vs #28 DEF, vs #30 DEF, vs #32 DEF
+  - ROS Projection: 17.8 pts/game
+
+Trade Value: Player B is +6.3 pts/week more valuable! ✅
+```
+
+### Testing
+Created comprehensive test suite (`test_ros_trade_analysis.py`) with 7 tests:
+- ✅ ROS uses weeks_remaining parameter
+- ✅ ROS vs season avg gives different results
+- ✅ find_trade_opportunities uses ROS flag
+- ✅ Opponent strength calculation works
+- ✅ ROS value calculation returns valid values
+- ✅ ROS works without schedule data (fallback)
+- ✅ All trade analysis includes ROS metadata
+
+### Configuration
+
+**Default: ROS Enabled**
+```python
+# Automatic - uses ROS by default
+opportunities = simulator.find_trade_opportunities(my_team)
+```
+
+**Disable ROS (use season averages)**
+```python
+# For comparison or if schedule data unavailable
+opportunities = simulator.find_trade_opportunities(my_team, use_ros=False)
+```
+
+**Manual weeks_remaining**
+```python
+# Focus on next 3 weeks only
+analysis = simulator.analyze_trade(
+    my_team, other_team,
+    [my_player], [their_player],
+    weeks_remaining=3
+)
+```
+
+---
+
+## Summary (All Improvements)
+
+### What Changed
+- ✅ Injured players filtered from free agent recommendations
+- ✅ Trade acceptance probability calculated
+- ✅ Unrealistic trades filtered from recommendations
+- ✅ **ROS projections with schedule-aware matchups** (NEW!)
+- ✅ Better CLI output with visual indicators
+- ✅ Comprehensive tests added
+
+### Why It Matters
+- **Saves time**: No researching unavailable players
+- **Better trades**: Only propose realistic deals
+- **Accurate values**: Trade based on future value, not past performance
+- **Schedule advantage**: Exploit matchup differences others miss
+- **League relationships**: Don't annoy people with lowball offers
+- **More wins**: Focus on actionable opportunities
+
+### How to Use
+Just run the tool normally - improvements are automatic! The tool now:
+1. Only recommends healthy free agents you can actually pick up
+2. Only suggests trades that have a realistic chance of being accepted
+3. **Uses Rest of Season projections that consider upcoming matchups**
+4. Shows you acceptance probability so you can decide which trades to propose
+
+**Ready to use immediately - no config changes needed!** 🎉
