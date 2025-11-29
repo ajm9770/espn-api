@@ -278,8 +278,13 @@ class FantasyDecisionMaker:
 
     def generate_weekly_report(self, output_file: Optional[str] = None):
         """Generate comprehensive weekly report"""
+        # Create reports directory if it doesn't exist
+        import os
+        reports_dir = "reports"
+        os.makedirs(reports_dir, exist_ok=True)
+
         if output_file is None:
-            output_file = f"weekly_report_week{self.league.current_week}_{datetime.now().strftime('%Y%m%d')}.txt"
+            output_file = os.path.join(reports_dir, f"weekly_report_week{self.league.current_week}_{datetime.now().strftime('%Y%m%d')}.txt")
 
         print("=" * 80)
         print(f"📝 GENERATING WEEKLY REPORT")
