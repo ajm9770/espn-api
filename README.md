@@ -141,11 +141,13 @@ python fantasy_decision_maker.py \
   --report-only
 ```
 
-This creates a text file with:
+This creates a text file in the `./reports/` directory with:
 - Matchup analysis with win probability
 - Season outlook with playoff odds
 - Top 10 free agent recommendations
 - Top 5 trade opportunities
+
+Reports are saved as: `./reports/weekly_report_week{week}_{date}.txt`
 
 ### Advanced Options
 

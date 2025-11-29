@@ -144,17 +144,18 @@ class FantasyDecisionMaker:
     def analyze_free_agents(self, top_n: int = 10):
         """Analyze and recommend free agents"""
         print("=" * 80)
-        print("🆓 FREE AGENT ANALYSIS")
+        print("🆓 FREE AGENT ANALYSIS (REST OF SEASON)")
         print("=" * 80)
 
         print(f"\n📥 Fetching free agents...")
         free_agents = self.league.free_agents(size=100)
 
-        print(f"🔍 Analyzing {len(free_agents)} free agents...\n")
+        print(f"🔍 Analyzing {len(free_agents)} free agents with ROS schedule awareness...\n")
         recommendations = self.simulator.recommend_free_agents(
             self.my_team,
             free_agents,
-            top_n=top_n
+            top_n=top_n,
+            use_ros=True
         )
 
         if not recommendations:
@@ -162,39 +163,60 @@ class FantasyDecisionMaker:
             return
 
         # Create DataFrame for display
+        uses_ros = recommendations[0].get('uses_ros', False) if recommendations else False
+        ros_label = " (ROS)" if uses_ros else ""
+
         data = []
         for i, rec in enumerate(recommendations, 1):
+            # Show both ROS and season avg if using ROS
+            if rec.get('uses_ros', False):
+                fa_display = f"{rec['fa_projected_avg']:.1f}"
+                drop_display = f"{rec['drop_projected_avg']:.1f}"
+                # Add season avg in parentheses if different
+                if abs(rec['fa_projected_avg'] - rec['fa_season_avg']) > 0.5:
+                    fa_display += f" ({rec['fa_season_avg']:.1f})"
+                if rec['drop_projected_avg'] > 0 and abs(rec['drop_projected_avg'] - rec['drop_season_avg']) > 0.5:
+                    drop_display += f" ({rec['drop_season_avg']:.1f})"
+            else:
+                fa_display = f"{rec['fa_projected_avg']:.1f}"
+                drop_display = f"{rec['drop_projected_avg']:.1f}"
+
             data.append({
                 'Rank': i,
                 'Player': rec['player'].name,
                 'Pos': rec['position'],
                 'Value Added': f"+{rec['value_added']:.1f}",
-                'Proj Avg': f"{rec['fa_projected_avg']:.1f}",
+                f'ROS Avg': fa_display,
                 'Drop': rec['drop_candidate'][:20],
-                'Drop Avg': f"{rec['drop_projected_avg']:.1f}",
+                f'Drop ROS': drop_display,
                 'Priority': rec['priority'],
                 'Own %': f"{rec['ownership_pct']:.1f}%"
             })
 
         df = pd.DataFrame(data)
-        print("🎯 TOP FREE AGENT RECOMMENDATIONS:\n")
+        print(f"🎯 TOP FREE AGENT RECOMMENDATIONS{ros_label}:")
+        if uses_ros:
+            print("   (ROS values shown, season avg in parentheses if significantly different)\n")
+        else:
+            print()
         print(df.to_string(index=False))
         print()
 
     def analyze_trades(self, max_opportunities: int = 5):
         """Find and analyze trade opportunities"""
         print("=" * 80)
-        print("🔄 TRADE OPPORTUNITY ANALYSIS")
+        print("🔄 TRADE OPPORTUNITY ANALYSIS (REST OF SEASON)")
         print("=" * 80)
 
         print(f"\n🔍 Searching for realistic trade opportunities...")
-        print("   (Looking for trades with good value AND reasonable acceptance chance)\n")
+        print("   (Using ROS projections with schedule-aware matchup difficulty)\n")
 
         opportunities = self.simulator.find_trade_opportunities(
             self.my_team,
             min_advantage=3.0,  # Minimum 3 point advantage
             max_trades_per_team=2,
-            min_acceptance_probability=30.0  # At least 30% chance of acceptance
+            min_acceptance_probability=30.0,  # At least 30% chance of acceptance
+            use_ros=True  # Use rest of season projections
         )
 
         if not opportunities:
@@ -211,10 +233,14 @@ class FantasyDecisionMaker:
             print(f"  You Receive: {', '.join(opp['receive'])}")
 
             analysis = opp['analysis']
-            print(f"\n  📊 Analysis:")
-            print(f"     Your Value Change:      {analysis['my_value_change']:+.1f} pts")
-            print(f"     Their Value Change:     {analysis['their_value_change']:+.1f} pts")
-            print(f"     Advantage Margin:       {analysis['advantage_margin']:+.1f} pts")
+            ros_indicator = " (ROS)" if analysis.get('uses_ros_projections', False) else ""
+            weeks_rem = analysis.get('weeks_remaining', 'N/A')
+
+            print(f"\n  📊 Analysis{ros_indicator}:")
+            print(f"     Weeks Remaining:        {weeks_rem}")
+            print(f"     Your Value Change:      {analysis['my_value_change']:+.1f} pts/week")
+            print(f"     Their Value Change:     {analysis['their_value_change']:+.1f} pts/week")
+            print(f"     Advantage Margin:       {analysis['advantage_margin']:+.1f} pts/week")
             print(f"     Points Added Per Week:  {analysis['projected_points_added_per_week']:+.1f} pts")
             print(f"     Acceptance Probability: {analysis['acceptance_probability']:.0f}%")
             print(f"     Recommendation:         {analysis['recommendation']}")
@@ -278,8 +304,13 @@ class FantasyDecisionMaker:
 
     def generate_weekly_report(self, output_file: Optional[str] = None):
         """Generate comprehensive weekly report"""
+        # Create reports directory if it doesn't exist
+        import os
+        reports_dir = "reports"
+        os.makedirs(reports_dir, exist_ok=True)
+
         if output_file is None:
-            output_file = f"weekly_report_week{self.league.current_week}_{datetime.now().strftime('%Y%m%d')}.txt"
+            output_file = os.path.join(reports_dir, f"weekly_report_week{self.league.current_week}_{datetime.now().strftime('%Y%m%d')}.txt")
 
         print("=" * 80)
         print(f"📝 GENERATING WEEKLY REPORT")
