@@ -439,8 +439,9 @@ class AdvancedFantasySimulator:
             # Filter out injured players
             if exclude_injured:
                 injury_status = getattr(fa, 'injuryStatus', None) or getattr(fa, 'injury_status', None)
-                # Skip players with O (Out), Q (Questionable), D (Doubtful), IR, SUSP status
-                if injury_status and injury_status.upper() in ['OUT', 'O', 'QUESTIONABLE', 'Q', 'DOUBTFUL', 'D', 'IR', 'SUSPENSION', 'SUSP']:
+                # ESPN uses: OUT, QUESTIONABLE, DOUBTFUL, INJURY_RESERVE, DAY_TO_DAY
+                # Healthy players have: ACTIVE or NORMAL
+                if injury_status and injury_status.upper() not in ['ACTIVE', 'NORMAL', '', None]:
                     continue
 
             # Find weakest player at this position on my team
